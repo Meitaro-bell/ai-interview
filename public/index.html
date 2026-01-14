@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 面接室</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- 全体のデザイン設定 --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: "Helvetica Neue", Arial, sans-serif;
+            background-color: #f4f6f9; color: #333; height: 100vh; display: flex; overflow: hidden;
+        }
+
+        /* --- 左サイドバー --- */
+        #sidebar {
+            width: 340px; background-color: #ffffff; border-right: 1px solid #e0e0e0;
+            display: flex; flex-direction: column; padding: 20px;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.05); z-index: 10; overflow-y: auto;
+        }
+        .sidebar-title {
+            font-size: 1.2rem; font-weight: bold; color: #2c3e50;
+            margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid #34495e;
+        }
+        .setting-group { margin-bottom: 15px; }
+        .setting-label {
+            font-size: 0.85rem; color: #7f8c8d; margin-bottom: 5px; display: block; font-weight: bold;
+        }
+        .styled-input, .styled-select {
+            width: 100%; padding: 10px; border: 1px solid #dcdcdc; border-radius: 8px;
+            background: #f9f9f9; font-size: 0.9rem; outline: none;
+        }
+
+        /* --- タイマーエリア --- */
+        #timer-box {
+            background: #2c3e50; padding: 15px; border-radius: 10px; text-align: center; margin-bottom: 20px;
+        }
+        #timer-display {
+            font-size: 2.5rem; font-weight: bold; color: #ecf0f1; font-family: 'Courier New', monospace;
+            margin-bottom: 10px; letter-spacing: 2px;
+        }
+        .timer-controls { display: flex; gap: 10px; justify-content: center; }
+        .timer-btn {
+            padding: 5px 15px; border: none; border-radius: 5px; cursor: pointer;
+            color: white; font-weight: bold; font-size: 0.8rem; transition: 0.2s;
+        }
+        .timer-btn:hover { opacity: 0.9; }
+        .btn-start { background: #27ae60; }
+        .btn-stop { background: #e67e22; }
+        .btn-reset { background: #7f8c8d; }
+
+        /* --- アクションボタンエリア --- */
+        .sidebar-btn {
+            width: 100%; padding: 12px; border: none; border-radius: 8px; cursor: pointer;
+            font-weight: bold; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;
+            font-size: 0.95rem;
+        }
+        /* ログ保存ボタン */
+        #download-btn { background-color: #34495e; color: white; }
+        #download-btn:hover { background-color: #2c3e50; transform: translateY(-2px); }
+        /* 終了ボタン（新機能！） */
+        #finish-btn { background-color: #c0392b; color: white; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(192, 57, 43, 0.3); }
+        #finish-btn:hover { background-color: #a93226; transform: translateY(-2px); }
+
+        /* --- カメラエリア --- */
+        #camera-container {
+            margin-top: auto; border-top: 1px solid #eee; padding-top: 15px;
+        }
+        #camera-preview {
+            width: 100%; height: 150px; background-color: #000; border-radius: 10px;
+            object-fit: cover; transform: scaleX(-1); border: 2px solid #3498db;
+        }
+        .camera-label {
+            font-size: 0.8rem; color: #3498db; margin-bottom: 5px; display: flex; align-items: center; gap: 5px;
+        }
+
+        /* --- メインエリア --- */
+        #main-area { flex: 1; display: flex; flex-direction: column; position: relative; }
+        #header {
+            background-color: #2c3e50; color: white; padding: 15px 30px;
+            font-size: 1.2rem; font-weight: bold; display: flex; align-items: center; gap: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* チャットエリア */
+        #chat-container {
+            flex: 1; padding: 30px; overflow-y: auto; background: #f4f6f9;
+            display: flex; flex-direction: column; gap: 20px;
+        }
+        .message-row { display: flex; gap: 15px; max-width: 80%; }
+        .message-row.ai { align-self: flex-start; }
+        .message-row.user { align-self: flex-end; flex-direction: row-reverse; }
+        
+        /* システムメッセージ（終了時など） */
+        .message-row.system { align-self: center; max-width: 100%; }
+        .system .bubble { background: #ffeaa7; color: #d35400; font-weight: bold; text-align: center; border: 2px dashed #d35400; }
+
+        .avatar {
+            width: 45px; height: 45px; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center; font-size: 1.2rem;
+            flex-shrink: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .ai .avatar { background: white; color: #2c3e50; border: 2px solid #2c3e50; }
+        .user .avatar { background: #2c3e50; color: white; }
+        .system .avatar { display: none; }
+
+        .bubble {
+            padding: 15px 20px; border-radius: 15px; font-size: 1rem; line-height: 1.6;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .ai .bubble { background: white; color: #333; border-top-left-radius: 0; }
+        .user .bubble { background: #3498db; color: white; border-top-right-radius: 0; }
+        
+        .name-label { font-size: 0.8rem; color: #7f8c8d; margin-bottom: 5px; display: block; }
+        .user .name-label { text-align: right; }
+
+        /* 入力エリア */
+        #input-area {
+            background: white; padding: 20px 30px; border-top: 1px solid #e0e0e0;
+            display: flex; gap: 15px; align-items: center;
+        }
+        #message-input {
+            flex: 1; padding: 15px; border: 2px solid #e0e0e0; border-radius: 30px; font-size: 1rem; outline: none;
+        }
+        #message-input:disabled { background: #eee; cursor: not-allowed; }
+        .action-btn {
+            border: none; cursor: pointer; padding: 12px 25px; border-radius: 30px;
+            font-weight: bold; color: white; background: #27ae60; display: flex; align-items: center; gap: 5px;
+        }
+        #send-btn:disabled { background: #95a5a6; cursor: not-allowed; }
+        #mic-btn { background: #e74c3c; width: 50px; height: 50px; border-radius: 50%; padding: 0; justify-content: center; }
+        #mic-btn.listening { animation: pulse 1.5s infinite; background: #c0392b; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(0,0,0,0); } 100% { box-shadow: 0 0 0 0 rgba(0,0,0,0); } }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <div class="sidebar-title">📋 面接設定</div>
+        
+        <div class="setting-group">
+            <label class="setting-label"><i class="fas fa-stopwatch"></i> 面接タイマー</label>
+            <div id="timer-box">
+                <div id="timer-display">00:00</div>
+                <div class="timer-controls">
+                    <button class="timer-btn btn-start" onclick="startTimer()">開始</button>
+                    <button class="timer-btn btn-stop" onclick="stopTimer()">停止</button>
+                    <button class="timer-btn btn-reset" onclick="resetTimer()">リセット</button>
+                </div>
+            </div>
+        </div>
+
+        <button id="finish-btn" class="sidebar-btn" onclick="finishInterview()">
+            <i class="fas fa-flag-checkered"></i> 面接終了＆フィードバック
+        </button>
+
+        <button id="download-btn" class="sidebar-btn" onclick="downloadLog()">
+            <i class="fas fa-file-download"></i> 会話ログを保存
+        </button>
+
+        <div class="setting-group">
+            <label class="setting-label">あなたのお名前</label>
+            <input type="text" id="username-input" class="styled-input" value="山田 太郎">
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">志望業界</label>
+            <select class="styled-select" id="industry-select">
+                <option>IT・Web業界</option>
+                <option>メーカー</option>
+                <option>商社</option>
+                <option>金融</option>
+                <option>サービス・接客</option>
+                <option>公務員</option>
+                <option>その他</option>
+            </select>
+        </div>
+
+        <div class="setting-group">
+            <label class="setting-label">面接官タイプ</label>
+            <select class="styled-select" id="mode-select" onchange="changeMode()">
+                <option value="gentle">😇 優しい面接官</option>
+                <option value="strict">👹 厳しい面接官</option>
+            </select>
+        </div>
+
+        <div id="camera-container">
+            <div class="camera-label"><i class="fas fa-video"></i> カメラチェック</div>
+            <video id="camera-preview" autoplay playsinline muted></video>
+        </div>
+    </div>
+
+    <div id="main-area">
+        <div id="header">
+            <i class="fas fa-robot"></i> AI 面接室
+        </div>
+
+        <div id="chat-container">
+            <div class="message-row ai">
+                <div class="avatar"><i class="fas fa-user-tie"></i></div>
+                <div>
+                    <span class="name-label">面接官</span>
+                    <div class="bubble">こんにちは。面接を始めます。まずは自己紹介をお願いします。</div>
+                </div>
+            </div>
+        </div>
+
+        <form id="input-area">
+            <button type="button" id="mic-btn" class="action-btn"><i class="fas fa-microphone"></i></button>
+            <input type="text" id="message-input" autocomplete="off" placeholder="回答を入力..." />
+            <button type="submit" id="send-btn" class="action-btn">送信 <i class="fas fa-paper-plane"></i></button>
+        </form>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        var socket = io();
+        var form = document.getElementById('input-area');
+        var input = document.getElementById('message-input');
+        var messages = document.getElementById('chat-container');
+        var micBtn = document.getElementById('mic-btn');
+        var chatHistory = [];
+        
+        chatHistory.push("面接官: こんにちは。面接を始めます。まずは自己紹介をお願いします。");
+
+        // ★面接終了＆フィードバック機能
+        function finishInterview() {
+            if(!confirm("面接を終了して、ここまでのフィードバックをもらいますか？")) return;
+
+            stopTimer(); // タイマー停止
+            
+            // 入力を無効化（終了感の演出）
+            input.disabled = true;
+            document.getElementById('send-btn').disabled = true;
+            input.placeholder = "面接は終了しました";
+
+            // システムメッセージ表示
+            addMessage("🛑 面接終了！フィードバックを生成しています...", "system");
+
+            // AIにフィードバックを要求する特別なメッセージを送る
+            // ※ユーザーには見えないように裏で送信、またはシステムメッセージとして扱う
+            var feedbackRequest = "面接は以上です。ここまでの私の受け答えについて、良かった点と、次回に向けた具体的な改善点（フィードバック）を教えてください。辛口でお願いします。";
+            socket.emit('chat message', feedbackRequest);
+        }
+
+        // ログ保存
+        function downloadLog() {
+            const now = new Date();
+            const dateStr = now.getFullYear() + "-" + (now.getMonth()+1) + "-" + now.getDate() + "_" + now.getHours() + now.getMinutes();
+            const content = chatHistory.join("\n\n");
+            const blob = new Blob([content], { type: "text/plain" });
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = `面接練習ログ_${dateStr}.txt`;
+            link.click();
+        }
+
+        // タイマー
+        let timerInterval;
+        let seconds = 0;
+        function startTimer() { if (!timerInterval) timerInterval = setInterval(() => { seconds++; updateTimerDisplay(); }, 1000); }
+        function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
+        function resetTimer() { stopTimer(); seconds = 0; updateTimerDisplay(); }
+        function updateTimerDisplay() {
+            const m = Math.floor(seconds / 60).toString().padStart(2, '0');
+            const s = (seconds % 60).toString().padStart(2, '0');
+            document.getElementById('timer-display').textContent = `${m}:${s}`;
+        }
+
+        // カメラ
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+            .then(s => { document.getElementById('camera-preview').srcObject = s; })
+            .catch(e => console.log(e));
+
+        function changeMode() { socket.emit('change_mode', document.getElementById('mode-select').value); }
+
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (input.value) {
+                addMessage(input.value, 'user');
+                socket.emit('chat message', input.value);
+                input.value = '';
+            }
+        });
+
+        socket.on('chat message', function(msg) {
+            var cleanMsg = msg.replace(/^.*: /, '');
+            addMessage(cleanMsg, 'ai');
+            const uttr = new SpeechSynthesisUtterance(cleanMsg);
+            uttr.lang = "ja-JP";
+            if (msg.includes("厳")) { uttr.pitch = 0.8; } else { uttr.pitch = 1.2; }
+            window.speechSynthesis.speak(uttr);
+        });
+
+        function addMessage(text, type) {
+            var row = document.createElement('div');
+            row.className = 'message-row ' + type;
+            
+            // ログ配列に追加（システムメッセージ以外）
+            if(type !== 'system') {
+                var name = (type === 'ai') ? '面接官' : '自分';
+                chatHistory.push(`${name}: ${text}`);
+            }
+
+            var avatarHtml = '';
+            if (type !== 'system') {
+                avatarHtml = `<div class="avatar"><i class="fas fa-${type === 'ai' ? 'user-tie' : 'user'}"></i></div>`;
+            }
+
+            var nameHtml = '';
+            if (type !== 'system') {
+                var userName = document.getElementById('username-input').value || 'あなた';
+                var nameText = type === 'ai' ? '面接官' : userName;
+                nameHtml = `<span class="name-label">${nameText}</span>`;
+            }
+
+            row.innerHTML = `${avatarHtml}<div>${nameHtml}<div class="bubble">${text}</div></div>`;
+            messages.appendChild(row);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'ja-JP';
+            micBtn.onclick = () => { recognition.start(); micBtn.classList.add('listening'); };
+            recognition.onresult = (e) => { input.value = e.results[0][0].transcript; micBtn.classList.remove('listening'); };
+            recognition.onend = () => { micBtn.classList.remove('listening'); };
+        } else { micBtn.style.display = 'none'; }
+    </script>
+</body>
+</html>
