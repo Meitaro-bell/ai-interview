@@ -4,12 +4,12 @@ const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server);
-const OpenAI = require("openai");
+const { OpenAI } = require("openai"); // 修正ポイント1：{ OpenAI } に変更
 
-// ★注意: 後でエディタでここにAPIキーを入れてください
-// 【修正前】 const apiKey = "sk-xxxxxxxxxxxxxx";
-// 【修正後】
-const apiKey = process.env.OPENAI_API_KEY;
+// 修正ポイント2：OpenAIのインスタンスを作成する
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
 
 app.use(express.static('public'));
 
@@ -21,6 +21,7 @@ io.on('connection', (socket) => {
     socket.on('chat message', async (msg) => {
         chatHistory.push({ role: "user", content: msg });
         try {
+            // 修正ポイント3：上で作成した「openai」変数を使用する
             const completion = await openai.chat.completions.create({
                 messages: chatHistory,
                 model: "gpt-4o-mini",
@@ -30,7 +31,7 @@ io.on('connection', (socket) => {
             io.emit('chat message', "面接官: " + aiResponse);
         } catch (error) {
             console.error("Error:", error);
-            io.emit('chat message', "システム: APIキーが設定されていないか、エラーが発生しました。");
+            io.emit('chat message', "システム: エラーが発生しました。ログを確認してください。");
         }
     });
 });
